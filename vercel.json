@@ -1,4 +1,6 @@
 {
   "version": 2,
-  "builds": [{ "src": "api/proxi.js", "use": "@vercel/node" }]
+  "routes": [
+    { "src": "/api/proxi", "dest": "/api/proxi.js" }
+  ]
 }
