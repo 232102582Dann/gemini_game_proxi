@@ -35,3 +35,18 @@ export default async function handler(req, res) {
     res.status(500).json({ error: "Gagal" });
   }
 }
+
+
+// Tambahkan logika ini di dalam fungsi handler Vercel kamu:
+let bodyData = req.body;
+
+// Jika data datang dari Construct 2, formatnya berupa Key dengan Value kosong. Kita ambil Key-nya saja:
+if (typeof bodyData === 'object' && Object.keys(bodyData).length > 0 && Object.values(bodyData)[0] === '') {
+    try {
+        bodyData = JSON.parse(Object.keys(bodyData)[0]);
+    } catch (e) {
+        // Gagal parse JSON
+    }
+}
+
+// Selanjutnya, gunakan variabel `bodyData` ini untuk dikirim ke Google Gemini AI
