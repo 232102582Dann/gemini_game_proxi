@@ -9,39 +9,48 @@ export default async function handler(req, res) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
   try {
-    // 1. Ambil data mentah yang dikirim oleh Construct 2
+    // 1. Ambil teks mentah dari Construct 2
     let rawBody = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
-
-    // 2. JINAKKAN BUG CONSTRUCT 2: Bersihkan double/triple quotes ("" atau """) menjadi satu tanda petik biasa (")
-    // Ini mengubah text hancur dari image_6c4460.png menjadi JSON bersih yang valid
-    let cleanBody = rawBody.replace(/""+/g, '"');
-
-    // Jika ada sisa tanda petik di luar bungkus string akibat salah urutan parser, kita rapikan
-    if (cleanBody.startsWith('"{\\"') || cleanBody.startsWith('"{')) {
-        cleanBody = cleanBody.replace(/^"/, '').replace(/"$/, '');
+    
+    // 2. DETEKSI PAKSA: Ambil teks apa pun yang ada di dalam parameter "text"
+    // Cara ini bypass semua error tanda petik hancur di Construct 2
+    let userPrompt = "Halo Gemini, berikan satu kalimat motivasi pendek!";
+    const match = rawBody.match(/"text"\s*:\s*"*([^"\}]+)/);
+    if (match && match[1]) {
+        userPrompt = match[1].replace(/\\/g, '').trim();
     }
 
-    // 3. Kirim ke API Gemini
+    // 3. Susun Payload Resmi Gemini
+    const geminiPayload = {
+      contents: [{
+        parts: [{ text: userPrompt }]
+      }]
+    };
+
+    // 4. Kirim ke Gemini
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: cleanBody
+      body: JSON.stringify(geminiPayload)
     });
     
     const data = await response.json();
 
-    // 4. SESUAIKAN DENGAN TOKENAT DI IMAGE_6C4460.PNG
-    // Rumus tokenat kamu di Event 10 mencari teks: ""text"": ""
-    // Agar tokenat kamu yang hancur itu berhasil membaca, kita paksa Vercel mengembalikan format teks mentah yang sesuai!
-    if (data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
-       const aiText = data.candidates[0].content.parts[0].text;
-       // Format balikan ini dibuat sengaja agar umpan tokenat(..., 1, '""text"": ""') milikmu sukses memotong string
+    // 5. Jika API Key salah atau kuota habis, tangkap errornya
+    if (data.error) {
+       res.status(200).send(`{"text": "Error API: ${data.error.message}"}`);
+       return;
+    }
+
+    // 6. Kembalikan data sesuai format tokenat kamu
+    if (data && data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
+       const aiText = data.candidates[0].content.parts[0].text.replace(/"/g, "'").replace(/\n/g, " ");
        res.status(200).send(`{"text": "${aiText}"}`);
     } else {
-       res.status(200).send(`{"text": "Gagal mengambil data dari AI"}`);
+       res.status(200).send(`{"text": "Gemini balik kosong, cek API Key di Vercel"}`);
     }
 
   } catch (error) {
-    res.status(500).json({ error: "Gagal menghubungkan ke Gemini" });
+    res.status(200).send(`{"text": "Server eror: ${error.message}"}`);
   }
 }
