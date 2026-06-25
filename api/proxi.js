@@ -12,12 +12,12 @@ export default async function handler(req, res) {
     // 1. Ambil teks mentah dari Construct 2
     let rawBody = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
     
-    // 2. DETEKSI PAKSA: Ambil teks apa pun yang ada di dalam parameter "text"
-    // Cara ini bypass semua error tanda petik hancur di Construct 2
+    // 2. DETEKSI PAKSA: Ambil teks di dalam parameter "text" dengan regex yang lebih aman
     let userPrompt = "Halo Gemini, berikan satu kalimat motivasi pendek!";
-    const match = rawBody.match(/"text"\s*:\s*"*([^"\}]+)/);
+    const match = rawBody.match(/"text"\s*:\s*["\s]*([^"}]+)/);
     if (match && match[1]) {
-        userPrompt = match[1].replace(/\\/g, '').trim();
+        // Bersihkan sisa-sisa tanda petik ganda bawaan Construct 2
+        userPrompt = match[1].replace(/"/g, '').replace(/\\/g, '').trim();
     }
 
     // 3. Susun Payload Resmi Gemini
@@ -36,9 +36,9 @@ export default async function handler(req, res) {
     
     const data = await response.json();
 
-    // 5. Jika API Key salah atau kuota habis, tangkap errornya
+    // 5. Jika API Key bermasalah, kirim pesan ringkas yang tidak akan kepotong tokenat
     if (data.error) {
-       res.status(200).send(`{"text": "Error API: ${data.error.message}"}`);
+       res.status(200).send(`{"text": "Eror: API Key Vercel bermasalah atau habis kuota"}`);
        return;
     }
 
@@ -47,10 +47,10 @@ export default async function handler(req, res) {
        const aiText = data.candidates[0].content.parts[0].text.replace(/"/g, "'").replace(/\n/g, " ");
        res.status(200).send(`{"text": "${aiText}"}`);
     } else {
-       res.status(200).send(`{"text": "Gemini balik kosong, cek API Key di Vercel"}`);
+       res.status(200).send(`{"text": "Eror: Respon Gemini kosong"}`);
     }
 
   } catch (error) {
-    res.status(200).send(`{"text": "Server eror: ${error.message}"}`);
+    res.status(200).send(`{"text": "Eror: Masalah pada server proxy"}`);
   }
 }
