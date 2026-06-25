@@ -6,7 +6,8 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const apiKey = process.env.GEMINI_API_KEY;
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  // UPDATE: Menggunakan endpoint v1 dan model gemini-2.5-flash terbaru
+  const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
   try {
     // 1. Ambil teks mentah dari Construct 2
@@ -38,7 +39,8 @@ export default async function handler(req, res) {
 
     // 5. Jika API Key bermasalah, kirim pesan ringkas yang tidak akan kepotong tokenat
     if (data.error) {
-       res.status(200).send(`{"text": "Eror: API Key Vercel bermasalah atau habis kuota"}`);
+       console.error("Gemini Error:", data.error);
+       res.status(200).send(`{"text": "Eror: API Key Vercel bermasalah atau model expired"}`);
        return;
     }
 
